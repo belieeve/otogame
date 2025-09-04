@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# local server helpers
+.server_pid
+http_server.log
+
+# editor
+.idea/
+.vscode/
+
