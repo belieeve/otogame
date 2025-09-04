@@ -115,6 +115,16 @@ function renderUI() {
         <div>またはドラッグ＆ドロップ</div>
       </div>
       <div id="drop" class="drag-area" style="margin-top:12px">ここに音楽ファイルをドロップ</div>
+      <div class="row" style="margin-top:12px; align-items:center">
+        <button id="start-global" ${selectedTrackId? '' : 'disabled'}>START</button>
+        <div class="muted" id="selected-label" style="margin-left:8px">${(() => {
+          try {
+            const t = tracks.find(x=>x.id===selectedTrackId);
+            return t ? `選択中: ${escapeHtml(t.name)} / 難易度 ${selectedDifficulty}` : '選択中: なし';
+          } catch { return '選択中: なし'; }
+        })()}</div>
+        <div class="muted" style="margin-left:12px">Enter / Space でも開始</div>
+      </div>
       <div class="row" style="margin-top:12px">
         <label>難易度:</label>
         ${DIFFICULTY.map(d => `
@@ -2344,6 +2354,11 @@ window.addEventListener('keydown', (e) => {
   }
   // SELECT shortcuts
   if (gameState === STATE.SELECT && !calibrator.active) {
+    if ((e.code === 'Enter' || e.code === 'Space') && selectedTrackId) {
+      e.preventDefault();
+      startPlay(selectedTrackId, selectedDifficulty);
+      return;
+    }
     if (e.code === 'Digit1') { selectedDifficulty = 'EASY'; saveSettings(); renderUI(); return; }
     if (e.code === 'Digit2') { selectedDifficulty = 'NORMAL'; saveSettings(); renderUI(); return; }
     if (e.code === 'Digit3') { selectedDifficulty = 'HARD'; saveSettings(); renderUI(); return; }
