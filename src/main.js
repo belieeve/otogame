@@ -453,6 +453,7 @@ function renderUI() {
         <div class="muted" style="margin:6px 0">${t.type} • ${formatDuration(t.duration)} ${meta.bpm ? `• BPM ${meta.bpm}` : ''}</div>
         ${meta.best && meta.best[selectedDifficulty] ? `<div class=\"mono\" style=\"color:#93ffa7; font-size:13px;\">Best(${selectedDifficulty}) Score ${meta.best[selectedDifficulty].score} / ${meta.best[selectedDifficulty].acc.toFixed(1)}% • MaxCombo ${meta.best[selectedDifficulty].combo||0}</div>`: `<div class=\"muted\">未プレイ (${selectedDifficulty})</div>`}
         ${meta.lastPlayedDifficulty ? `<div class="muted">最近: ${meta.lastPlayedDifficulty}</div>` : ''}
+        ${(t.file && !t.sourceUrl) ? `<div class=\"row card-actions\"><button class=\"secondary\" data-upload=\"1\">クラウド公開</button></div>` : ''}
       `;
       
       // Selection-based start flow: select card, then press global START
@@ -487,6 +488,20 @@ function renderUI() {
         if (e.code === 'End') { e.preventDefault(); items[items.length-1]?.focus(); }
       });
       if ((lastTrackKey && t.key === lastTrackKey) || (selectedTrackId && t.id === selectedTrackId)) { card.classList.add('selected'); focusTarget = card; }
+      const up = card.querySelector('[data-upload]');
+      if (up) {
+        up.addEventListener('click', async (ev)=>{
+          ev.stopPropagation();
+          up.disabled = true;
+          try {
+            await uploadTrackToCloud(t);
+            renderUI();
+            alert('クラウドに公開しました。共有リンクから他の人も遊べます。');
+          } catch (e) {
+            alert('公開に失敗しました: ' + (e?.message||e));
+          } finally { up.disabled = false; }
+        });
+      }
       $list.appendChild(card);
     }
     // Focus last selected track if present
@@ -2658,6 +2673,22 @@ async function computeTrackKey(file, arrayBuffer) {
   for (let i=0;i<view.length;i++) h = ((h<<5) + h) ^ view[i];
   h = h >>> 0;
   return 't' + h.toString(36);
+}
+async function uploadTrackToCloud(track){
+  if (!track || !track.arrayBuffer) throw new Error('no track data');
+  const fd = new FormData();
+  const name = (track.name || 'track').replace(/[^\w\-\.]+/g,'_');
+  const type = track.file?.type || 'audio/mpeg';
+  const blob = new Blob([track.arrayBuffer], { type });
+  fd.append('file', blob, name);
+  fd.append('filename', name);
+  const res = await fetch('/api/upload', { method:'POST', body: fd });
+  if (!res.ok) throw new Error(`upload failed: ${res.status}`);
+  const data = await res.json();
+  if (!data?.url) throw new Error('no url returned');
+  track.sourceUrl = data.url;
+  // reflect to stats
+  try { if (track.key) { stats[track.key] = stats[track.key] || { name: track.name, best: {} }; stats[track.key].sourceUrl = data.url; saveStats(); } } catch {}
 }
 function quickAnalyzeBPM(audioBuffer) {
   const sampleRate = audioBuffer.sampleRate;
