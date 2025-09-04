@@ -658,6 +658,7 @@ function startPlay(trackId, difficulty, offsetSec = 0) {
   saveSettings();
   setState(STATE.PLAY);
   const ac = ensureAudioContext();
+  try { if (ac.state !== 'running') { ac.resume && ac.resume(); } } catch {}
 
   // Generate chart from buffer
   const { chart, bpm, phi } = generateChart(track.audioBuffer, difficulty);
