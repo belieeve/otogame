@@ -2418,7 +2418,8 @@ window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyM') { // toggle hit sound
       e.preventDefault(); hitSound = !hitSound; saveSettings(); return;
     }
-    if (e.code === 'KeyF') { // toggle fullscreen
+    // Fullscreen toggle moved to F11 or Alt+Enter to avoid conflict with gameplay key 'F'
+    if (e.code === 'F11' || (e.code === 'Enter' && (e.altKey || e.metaKey))) {
       e.preventDefault(); toggleFullscreen(); return;
     }
     if (e.code === 'BracketRight') { // offset +5ms
