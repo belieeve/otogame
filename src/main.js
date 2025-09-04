@@ -832,7 +832,7 @@ function generateChart(audioBuffer, difficulty) {
   let lastTimeEmitted = -1e9;
   let lastLane = -1;
 
-  const minGap = params.minIntervalMs / 1000;
+  const minIntervalSec = params.minIntervalMs / 1000;
   const perLaneGap = params.perLaneMinMs / 1000;
 
   for (let i = 0; i < selectedOnsets.length; i++) {
@@ -841,7 +841,7 @@ function generateChart(audioBuffer, difficulty) {
     if (bpm) t = quantizeToGrid(t, bpm, gridWeights, params.snapWindowMs/1000);
 
     // Global min interval
-    if (t - lastTimeEmitted < minGap) continue;
+    if (t - lastTimeEmitted < minIntervalSec) continue;
 
     // Choose lane preferring change from last
     let baseLane = Math.floor(Math.abs(Math.sin(t * 97.31) * 10000)) % KEYS.length;
@@ -2370,6 +2370,28 @@ applyTheme();
 try { const c = document.getElementById('game-canvas'); if (c) c.style.pointerEvents = 'none'; } catch {}
 renderUI();
 
+// Global error handler to surface issues in UI (useful on hosted envs)
+window.addEventListener('error', (e)=>{
+  try{
+    const app = document.getElementById('app');
+    const card = document.createElement('div');
+    card.className = 'panel';
+    card.innerHTML = `<div class="title">エラーが発生しました</div>
+      <div class="mono" style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(String(e.message||e.error||'Unknown error'))}</div>`;
+    app.appendChild(card);
+  }catch{}
+});
+window.addEventListener('unhandledrejection', (e)=>{
+  try{
+    const app = document.getElementById('app');
+    const card = document.createElement('div');
+    card.className = 'panel';
+    card.innerHTML = `<div class="title">エラー(非同期)</div>
+      <div class="mono" style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(String(e.reason||'Unknown rejection'))}</div>`;
+    app.appendChild(card);
+  }catch{}
+});
+
 // ---------------- Persistence & Utilities ----------------
 function saveSettings() {
   try {
@@ -2617,7 +2639,14 @@ function playMissSound(lane=0) {
 
 function ensureAnalysisWorker() {
   if (!analysisWorker) {
-    analysisWorker = new Worker('src/analysisWorker.js');
+    try {
+      const url = new URL('./analysisWorker.js', import.meta.url);
+      // use classic worker (no module imports inside worker)
+      analysisWorker = new Worker(url, { type: 'classic' });
+    } catch (e) {
+      // fallback to relative path from document for environments without import.meta.url support
+      analysisWorker = new Worker('src/analysisWorker.js');
+    }
   }
   return analysisWorker;
 }
