@@ -201,6 +201,7 @@ function renderUI() {
     const $drop = panel.querySelector('#drop');
     const $btn = panel.querySelector('#file-button');
     const $list = panel.querySelector('#track-list');
+    const $startGlobal = panel.querySelector('#start-global');
     const $range = panel.querySelector('#offset-range');
     const $label = panel.querySelector('#offset-label');
     const $reset = panel.querySelector('#offset-reset');
@@ -284,6 +285,13 @@ function renderUI() {
 
     $btn.onclick = () => $input.click();
     $input.onchange = (e) => handleFiles(e.target.files);
+
+    if ($startGlobal) $startGlobal.onclick = () => {
+      if (!selectedTrackId) return;
+      const t = tracks.find(x=>x.id===selectedTrackId);
+      if (!t) return;
+      startPlay(selectedTrackId, selectedDifficulty);
+    };
 
     $range.oninput = () => { timingOffsetMs = parseInt($range.value, 10) || 0; $label.textContent = `${timingOffsetMs} ms`; saveSettings(); };
     $reset.onclick = () => { timingOffsetMs = 0; $range.value = 0; $label.textContent = '0 ms'; saveSettings(); };
@@ -384,11 +392,9 @@ function renderUI() {
         <div class="muted" style="margin:6px 0">${t.type} • ${formatDuration(t.duration)} ${meta.bpm ? `• BPM ${meta.bpm}` : ''}</div>
         ${meta.best && meta.best[selectedDifficulty] ? `<div class=\"mono\" style=\"color:#93ffa7; font-size:13px;\">Best(${selectedDifficulty}) Score ${meta.best[selectedDifficulty].score} / ${meta.best[selectedDifficulty].acc.toFixed(1)}% • MaxCombo ${meta.best[selectedDifficulty].combo||0}</div>`: `<div class=\"muted\">未プレイ (${selectedDifficulty})</div>`}
         ${meta.lastPlayedDifficulty ? `<div class="muted">最近: ${meta.lastPlayedDifficulty}</div>` : ''}
-        <div class="row card-actions">
-          <button data-id="${t.id}" aria-label="${escapeHtml(t.name)} を ${selectedDifficulty} でプレイ">プレイ</button>
-        </div>
       `;
-      card.querySelector('button').onclick = () => startPlay(t.id, selectedDifficulty);
+      
+      // Selection-based start flow: select card, then press global START
       const $close = card.querySelector('.close');
       $close.onclick = (ev) => {
         ev.stopPropagation();
@@ -401,11 +407,12 @@ function renderUI() {
         }
       };
       card.tabIndex = 0;
+      const selectThis = () => { selectedTrackId = t.id; lastTrackKey = t.key||null; saveSettings(); renderUI(); };
       card.addEventListener('click', (e)=>{
-        if (!(e.target instanceof HTMLButtonElement)) startPlay(t.id, selectedDifficulty);
+        if (!(e.target instanceof HTMLButtonElement)) selectThis();
       });
       card.addEventListener('keydown', (e)=>{
-        if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); startPlay(t.id, selectedDifficulty); return; }
+        if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); selectThis(); return; }
         // Arrow key navigation between cards
         const items = Array.from($list.querySelectorAll('.card'));
         const idx = items.indexOf(card);
@@ -418,7 +425,7 @@ function renderUI() {
         if (e.code === 'Home') { e.preventDefault(); items[0]?.focus(); }
         if (e.code === 'End') { e.preventDefault(); items[items.length-1]?.focus(); }
       });
-      if (lastTrackKey && t.key === lastTrackKey) { card.classList.add('selected'); focusTarget = card; }
+      if ((lastTrackKey && t.key === lastTrackKey) || (selectedTrackId && t.id === selectedTrackId)) { card.classList.add('selected'); focusTarget = card; }
       $list.appendChild(card);
     }
     // Focus last selected track if present
