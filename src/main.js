@@ -961,7 +961,7 @@ function generateGridChart(audioBuffer, difficulty, bpm) {
     // alternate lanes to avoid repetition; add occasional chords on HARD
     lane = (lane + 1) % lanes;
     chart.push({ time: t, lane, type: 'tap' });
-    if (difficulty === 'HARD' && Math.random() < 0.18) {
+    if (difficulty === 'HARD' && Math.random() < 0.12) {
       const l2 = (lane + 3) % lanes;
       chart.push({ time: t, lane: l2, type: 'tap' });
     }
@@ -973,46 +973,46 @@ function generateGridChart(audioBuffer, difficulty, bpm) {
 function getGenParams(difficulty) {
   if (difficulty === 'EASY') {
     return {
-      density: 0.45,
-      chordProb: 0.10,
-      minIntervalMs: 180,
-      perLaneMinMs: 220,
-      snapWindowMs: 45,
+      density: 0.36,
+      chordProb: 0.06,
+      minIntervalMs: 200,
+      perLaneMinMs: 240,
+      snapWindowMs: 48,
       gridWeights: { '1':0.1, '1/2':0.6, '1/3':0.0, '1/4':0.3 },
-      holdProb: 0.08,
+      holdProb: 0.05,
       holdMinBeats: 1.0,
       holdMaxBeats: 2.0,
-      burstWindowMs: 260,
+      burstWindowMs: 320,
       burstLimit: 2,
     };
   }
   if (difficulty === 'HARD') {
     return {
-      density: 1.0,
-      chordProb: 0.38,
-      minIntervalMs: 110,
-      perLaneMinMs: 150,
-      snapWindowMs: 35,
+      density: 0.90,
+      chordProb: 0.30,
+      minIntervalMs: 120,
+      perLaneMinMs: 170,
+      snapWindowMs: 38,
       gridWeights: { '1':0.10, '1/2':0.35, '1/3':0.20, '1/4':0.35 },
-      holdProb: 0.25,
+      holdProb: 0.20,
       holdMinBeats: 1.0,
       holdMaxBeats: 3.0,
-      burstWindowMs: 220,
-      burstLimit: 4,
+      burstWindowMs: 240,
+      burstLimit: 3,
     };
   }
   // NORMAL
   return {
-    density: 0.7,
-    chordProb: 0.25,
-    minIntervalMs: 140,
-    perLaneMinMs: 180,
-    snapWindowMs: 40,
+    density: 0.60,
+    chordProb: 0.18,
+    minIntervalMs: 160,
+    perLaneMinMs: 200,
+    snapWindowMs: 44,
     gridWeights: { '1':0.15, '1/2':0.50, '1/3':0.10, '1/4':0.25 },
-    holdProb: 0.15,
+    holdProb: 0.12,
     holdMinBeats: 1.0,
     holdMaxBeats: 2.5,
-    burstWindowMs: 240,
+    burstWindowMs: 280,
     burstLimit: 3,
   };
 }
