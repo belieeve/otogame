@@ -45,6 +45,7 @@ html, body {
   padding: 16px;
   display: flex;
   justify-content: center;
+  z-index: 2; /* ensure UI overlays canvas */
 }
 
 .panel {
@@ -146,6 +147,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   left: 0; right: 0; bottom: 0; top: 0;
   width: 100vw; height: 100vh;
   display: block;
+  z-index: 1;
 }
 
 .stats {

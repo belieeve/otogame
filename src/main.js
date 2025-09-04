@@ -75,6 +75,13 @@ function ensureAudioContext() {
 function setState(next) {
   gameState = next;
   renderUI();
+  try {
+    const c = document.getElementById('game-canvas');
+    if (c) {
+      if (gameState === STATE.PLAY || gameState === STATE.RESULT) c.style.pointerEvents = 'auto';
+      else c.style.pointerEvents = 'none';
+    }
+  } catch {}
 }
 
 function renderUI() {
@@ -2359,6 +2366,8 @@ window.addEventListener('keyup', (e) => {
 // Initialize UI
 loadSettings();
 applyTheme();
+// Disable canvas interactions on non-play states to ensure UI is clickable
+try { const c = document.getElementById('game-canvas'); if (c) c.style.pointerEvents = 'none'; } catch {}
 renderUI();
 
 // ---------------- Persistence & Utilities ----------------

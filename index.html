@@ -11,7 +11,25 @@
       <!-- UI is rendered by JS into this container -->
     </div>
     <canvas id="game-canvas"></canvas>
+    <script>
+      (function(){
+        try {
+          if (location.protocol === 'file:') {
+            var app = document.getElementById('app');
+            var msg = document.createElement('div');
+            msg.className = 'panel';
+            msg.innerHTML = '<div class="title">ローカルサーバで開いてください</div>'+
+              '<div>このファイルを直接開くとブラウザの制限（CORS/モジュール/Worker）で動作しません。<br/>'+
+              '以下の手順で開いてください:</div>'+
+              '<div class="mono" style="margin-top:8px">python3 -m http.server 8000</div>'+
+              '<div class="muted" style="margin-top:4px">ブラウザで <b>http://localhost:8000/index.html</b> を開く</div>';
+            app.innerHTML = '';
+            app.appendChild(msg);
+            var cv = document.getElementById('game-canvas'); if (cv) cv.style.display = 'none';
+          }
+        } catch(e){}
+      })();
+    </script>
     <script type="module" src="src/main.js"></script>
   </body>
   </html>
-
