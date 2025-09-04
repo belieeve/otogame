@@ -116,7 +116,14 @@ function renderUI() {
       </div>
       <div id="drop" class="drag-area" style="margin-top:12px">ここに音楽ファイルをドロップ</div>
       <div class="row" style="margin-top:12px; align-items:center">
-        <button id="start-global" ${selectedTrackId? '' : 'disabled'}>START</button>
+        <button id="start-global" class="start-btn" ${selectedTrackId? '' : 'disabled'}>
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor" focusable="false" aria-hidden="true">
+              <path d="M8 5v14l11-7z"></path>
+            </svg>
+          </span>
+          <span>START</span>
+        </button>
         <div class="muted" id="selected-label" style="margin-left:8px">${(() => {
           try {
             const t = tracks.find(x=>x.id===selectedTrackId);
