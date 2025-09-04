@@ -764,13 +764,29 @@ async function computeTrackKeyFromUrl(url, arrayBuffer){
   h = h >>> 0; return 'u' + h.toString(36);
 }
 
+function base64UrlEncode(str){
+  const b64 = btoa(unescape(encodeURIComponent(str)));
+  return b64.replace(/=+$/,'').replace(/\+/g,'-').replace(/\//g,'_');
+}
+function base64UrlDecode(str){
+  try {
+    // support both base64url and base64
+    let s = String(str).replace(/-/g,'+').replace(/_/g,'/');
+    while (s.length % 4) s += '=';
+    const txt = atob(s);
+    return decodeURIComponent(escape(txt));
+  } catch (e) { return null; }
+}
 function buildShareLink(tracks){
   const urls = tracks.filter(t=>t && t.sourceUrl).map(t=>({ url: t.sourceUrl, name: t.name||null }));
-  if (!urls.length) { return location.href.split('#')[0]; }
+  if (!urls.length) {
+    alert('共有できるURL曲がありません。先に「URLから追加」で曲を追加してください。');
+    return location.href.split('#')[0];
+  }
   const payload = { v:1, urls };
   const json = JSON.stringify(payload);
-  const b64 = btoa(unescape(encodeURIComponent(json)));
-  return `${location.origin}${location.pathname}#share=${b64}`;
+  const b64u = base64UrlEncode(json);
+  return `${location.origin}${location.pathname}#share=${b64u}`;
 }
 
 // ---------------- Gameplay & Chart Generation ----------------
@@ -2567,11 +2583,19 @@ window.addEventListener('unhandledrejection', (e)=>{
   try {
     const m = location.hash.match(/[#&]share=([^&]+)/);
     if (!m) return;
-    const json = decodeURIComponent(escape(atob(m[1])));
-    const payload = JSON.parse(json);
+    const json = base64UrlDecode(m[1]);
+    const payload = json ? JSON.parse(json) : null;
     if (payload && Array.isArray(payload.urls)) {
+      let imported = 0;
       for (const it of payload.urls) {
-        if (it && it.url) { try { await handleUrlAdd(it.url); } catch {} }
+        if (it && it.url) { try { await handleUrlAdd(it.url); imported++; } catch {} }
+      }
+      if (imported > 0) {
+        // auto-select first imported track
+        try {
+          const first = tracks.find(t=>t && t.sourceUrl && payload.urls.some(u=>u.url===t.sourceUrl));
+          if (first) { selectedTrackId = first.id; lastTrackKey = first.key||null; saveSettings(); renderUI(); }
+        } catch {}
       }
     }
   } catch (e) {
