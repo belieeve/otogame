@@ -2494,11 +2494,16 @@ function applyTheme(){
 
 function toggleFullscreen() {
   try {
-    if (!document.fullscreenElement) {
-      (document.documentElement.requestFullscreen || document.body.requestFullscreen || (()=>{})).call(document.documentElement);
+    const doc = document;
+    const docEl = doc.documentElement;
+    const inFS = !!(doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement);
+    const request = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+    const exit = doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen || doc.msExitFullscreen;
+    if (!inFS) {
+      if (request) request.call(docEl);
       fullscreen = true;
     } else {
-      (document.exitFullscreen || (()=>Promise.resolve()))();
+      if (exit) exit.call(doc);
       fullscreen = false;
     }
   } catch {}
