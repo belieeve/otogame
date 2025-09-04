@@ -126,6 +126,13 @@ function renderUI() {
         <div>またはドラッグ＆ドロップ</div>
       </div>
       <div id="drop" class="drag-area" style="margin-top:12px">ここに音楽ファイルをドロップ</div>
+      <div class="row" style="margin-top:8px; align-items:center">
+        <label style="min-width:8em">URLから追加</label>
+        <input id="url-input" type="url" placeholder="https://example.com/music.mp3" style="flex:1; min-width: 240px;" />
+        <button id="url-add" class="secondary">追加</button>
+        <button id="share-copy" class="secondary">共有リンクをコピー</button>
+      </div>
+      <div class="muted" style="margin-top:4px">注意: 公開音源かつCORS許可されたURLのみ追加できます。</div>
       <div class="row" style="margin-top:12px; align-items:center">
         <button id="start-global" class="start-btn" ${selectedTrackId? '' : 'disabled'}>
           <span class="icon" aria-hidden="true">
@@ -231,6 +238,9 @@ function renderUI() {
     const $btn = panel.querySelector('#file-button');
     const $list = panel.querySelector('#track-list');
     const $startGlobal = panel.querySelector('#start-global');
+    const $urlInput = panel.querySelector('#url-input');
+    const $urlAdd = panel.querySelector('#url-add');
+    const $shareCopy = panel.querySelector('#share-copy');
     const $range = panel.querySelector('#offset-range');
     const $label = panel.querySelector('#offset-label');
     const $reset = panel.querySelector('#offset-reset');
@@ -318,6 +328,23 @@ function renderUI() {
 
     $btn.onclick = () => $input.click();
     $input.onchange = (e) => handleFiles(e.target.files);
+
+    if ($urlAdd) $urlAdd.onclick = async () => {
+      const url = ($urlInput?.value||'').trim();
+      if (!url) return;
+      $urlAdd.disabled = true;
+      try { await handleUrlAdd(url); $urlInput.value = ''; } finally { $urlAdd.disabled = false; }
+    };
+    if ($shareCopy) $shareCopy.onclick = async () => {
+      try {
+        const link = buildShareLink(tracks);
+        await navigator.clipboard.writeText(link);
+        alert('共有リンクをコピーしました');
+      } catch {
+        const ta = document.createElement('textarea'); ta.value = buildShareLink(tracks); document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+        alert('共有リンクをコピーしました');
+      }
+    };
 
     if ($startGlobal) $startGlobal.onclick = () => {
       if (!selectedTrackId) return;
@@ -686,6 +713,64 @@ async function handleFiles(fileList) {
     } catch (e) { console.warn('worker analyze failed', e); try { const bpm = quickAnalyzeBPM(audioBuffer); if (bpm){ stats[key]=stats[key]||{name:track.name,best:{}}; stats[key].name=track.name; stats[key].duration=track.duration; stats[key].bpm=bpm; saveStats(); } } catch {} }
   }
   renderUI();
+}
+
+async function handleUrlAdd(url) {
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const arrayBuffer = await res.arrayBuffer();
+    const ac = ensureAudioContext();
+    const audioBuffer = await ac.decodeAudioData(arrayBuffer.slice(0));
+    const id = Math.random().toString(36).slice(2);
+    const key = await computeTrackKeyFromUrl(url, arrayBuffer);
+    const name = guessNameFromResponse(url, res.headers) || url.split('/').pop() || 'track';
+    const track = { id, name, type: 'audio/url', file: null, arrayBuffer, audioBuffer, duration: audioBuffer.duration, key, sourceUrl: url, addedAt: Date.now() };
+    tracks.push(track);
+    // Quick BPM fill-in
+    try {
+      const bpm = quickAnalyzeBPM(audioBuffer);
+      if (bpm) {
+        stats[key] = stats[key] || { name: track.name, best: {} };
+        stats[key].name = track.name; stats[key].duration = track.duration; stats[key].bpm = bpm; saveStats();
+      }
+    } catch {}
+    renderUI();
+  } catch (e) {
+    alert(`URLの追加に失敗しました: ${e?.message||e}.\n公開音源かつCORSが許可されたURLか確認してください。`);
+  }
+}
+
+function guessNameFromResponse(url, headers) {
+  try {
+    const cd = headers.get && headers.get('content-disposition');
+    if (cd) {
+      const m = cd.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+      const raw = decodeURIComponent((m && (m[1]||m[2]||'')).trim());
+      if (raw) return raw;
+    }
+  } catch {}
+  try { const p = new URL(url); return decodeURIComponent(p.pathname.split('/').pop()||''); } catch {}
+  return null;
+}
+
+async function computeTrackKeyFromUrl(url, arrayBuffer){
+  const head = arrayBuffer.slice(0, Math.min(65536, arrayBuffer.byteLength));
+  const view = new Uint8Array(head);
+  let h = 5381;
+  const name = String(url);
+  for (let i=0;i<name.length;i++) h = ((h<<5) + h) ^ name.charCodeAt(i);
+  for (let i=0;i<view.length;i++) h = ((h<<5) + h) ^ view[i];
+  h = h >>> 0; return 'u' + h.toString(36);
+}
+
+function buildShareLink(tracks){
+  const urls = tracks.filter(t=>t && t.sourceUrl).map(t=>({ url: t.sourceUrl, name: t.name||null }));
+  if (!urls.length) { return location.href.split('#')[0]; }
+  const payload = { v:1, urls };
+  const json = JSON.stringify(payload);
+  const b64 = btoa(unescape(encodeURIComponent(json)));
+  return `${location.origin}${location.pathname}#share=${b64}`;
 }
 
 // ---------------- Gameplay & Chart Generation ----------------
@@ -2476,6 +2561,23 @@ window.addEventListener('unhandledrejection', (e)=>{
     app.appendChild(card);
   }catch{}
 });
+
+// Import shared set from URL hash (if present)
+(async function importShareFromHash(){
+  try {
+    const m = location.hash.match(/[#&]share=([^&]+)/);
+    if (!m) return;
+    const json = decodeURIComponent(escape(atob(m[1])));
+    const payload = JSON.parse(json);
+    if (payload && Array.isArray(payload.urls)) {
+      for (const it of payload.urls) {
+        if (it && it.url) { try { await handleUrlAdd(it.url); } catch {} }
+      }
+    }
+  } catch (e) {
+    console.warn('import share failed', e);
+  }
+})();
 
 // ---------------- Persistence & Utilities ----------------
 function saveSettings() {
