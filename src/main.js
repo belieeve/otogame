@@ -59,6 +59,7 @@ let fullscreen = false;
 let guideVol = 0.25; // 0..1 (independent from hitSoundVol)
 let missSound = true;
 let exportSize = '1600x900'; // result image size
+let bgmMode = false; // Force grid-based chart for BGM-only tracks
 // Selection state
 let lastDeleted = null; // { track, index, until }
 
@@ -109,7 +110,7 @@ function renderUI() {
     panel.innerHTML = `
       <div class="title">楽曲選択</div>
       <div class="row">
-        <input type="file" id="file-input" accept="audio/mpeg, audio/wav, audio/ogg" multiple style="display:none" />
+        <input type="file" id="file-input" accept="audio/*" multiple style="display:none" />
         <button id="file-button">音楽ファイルをアップロード</button>
         <div>またはドラッグ＆ドロップ</div>
       </div>
@@ -236,6 +237,9 @@ function renderUI() {
     const $optTheme = document.createElement('button');
     $optTheme.className = 'secondary';
     $optTheme.textContent = `THEME: ${theme.toUpperCase()}`;
+    const $optBgm = document.createElement('button');
+    $optBgm.className = 'secondary';
+    $optBgm.textContent = `BGM: ${bgmMode ? 'ON' : 'OFF'}`;
     const $optMusicLabel = document.createElement('label');
     $optMusicLabel.textContent = '音量(曲)';
     const $optMusic = document.createElement('input');
@@ -266,6 +270,7 @@ function renderUI() {
     optRow.appendChild($optJg);
     optRow.appendChild($optBeat);
     optRow.appendChild($optTheme);
+    optRow.appendChild($optBgm);
     optRow.appendChild($optLabel);
     optRow.appendChild($optVol);
     optRow.appendChild($optMusicLabel);
@@ -322,6 +327,7 @@ function renderUI() {
     $optJg.onclick = () => { showJudgeGuides = !showJudgeGuides; saveSettings(); renderUI(); };
     $optBeat.onclick = () => { guideBeat = !guideBeat; saveSettings(); renderUI(); };
     $optTheme.onclick = () => { theme = (theme==='dark'?'light':'dark'); applyTheme(); saveSettings(); renderUI(); };
+    $optBgm.onclick = () => { bgmMode = !bgmMode; saveSettings(); renderUI(); };
     $optVol.oninput = () => { hitSoundVol = Math.max(0, Math.min(1, ($optVol.value|0)/100)); saveSettings(); };
     $optMusic.oninput = () => { musicVol = Math.max(0, Math.min(1, ($optMusic.value|0)/100)); if (play?.gain) play.gain.gain.value = musicVol; saveSettings(); };
     $optFs.onclick = () => { toggleFullscreen(); renderUI(); };
@@ -771,6 +777,12 @@ function rankFromScore(score, maxScore) {
 
 // Basic chart generation using naive BPM + onset detection
 function generateChart(audioBuffer, difficulty) {
+  // If BGM mode, use a grid-based chart for robust playability
+  if (bgmMode) {
+    const bpmGuess = quickAnalyzeBPM(audioBuffer) || 120;
+    const gc = generateGridChart(audioBuffer, difficulty, bpmGuess);
+    return { chart: gc.chart, bpm: gc.bpm, phi: 0 };
+  }
   const sampleRate = audioBuffer.sampleRate;
   const data = mixToMono(audioBuffer);
 
@@ -907,7 +919,38 @@ function generateChart(audioBuffer, difficulty) {
   const smoothed = smoothBursts(syncReduced, params);
   // Sort by time then lane
   smoothed.sort((a,b)=> a.time===b.time ? a.lane-b.lane : a.time-b.time);
+  // Fallback: if too sparse (e.g., ambient/BGM), synthesize a grid chart
+  if (smoothed.length < 12) {
+    const bpmGuess = bpm || quickAnalyzeBPM(audioBuffer) || 120;
+    const gc = generateGridChart(audioBuffer, difficulty, bpmGuess);
+    return { chart: gc.chart, bpm: gc.bpm, phi: 0 };
+  }
   return { chart: smoothed, bpm, phi };
+}
+
+function generateGridChart(audioBuffer, difficulty, bpm) {
+  const lanes = KEYS.length;
+  const duration = audioBuffer.duration || 0;
+  const bps = 60 / (bpm || 120);
+  let stepBeats = 1.0;
+  if (difficulty === 'NORMAL') stepBeats = 0.5; // 8th
+  if (difficulty === 'HARD') stepBeats = 0.25;  // 16th
+  const step = bps * stepBeats;
+  const lead = 0.8; // avoid very beginning
+  const tail = Math.max(0, duration - 0.8);
+  const chart = [];
+  let lane = 0;
+  for (let t = lead; t < tail; t += step) {
+    // alternate lanes to avoid repetition; add occasional chords on HARD
+    lane = (lane + 1) % lanes;
+    chart.push({ time: t, lane, type: 'tap' });
+    if (difficulty === 'HARD' && Math.random() < 0.18) {
+      const l2 = (lane + 3) % lanes;
+      chart.push({ time: t, lane: l2, type: 'tap' });
+    }
+  }
+  chart.sort((a,b)=> a.time===b.time ? a.lane-b.lane : a.time-b.time);
+  return { chart, bpm: Math.round(bpm || 120) };
 }
 
 function getGenParams(difficulty) {
@@ -2403,7 +2446,7 @@ window.addEventListener('unhandledrejection', (e)=>{
 // ---------------- Persistence & Utilities ----------------
 function saveSettings() {
   try {
-    const obj = { selectedDifficulty, timingOffsetMs, showBeatGuide, judgeTightness, selectedSort, selectedSortDir, selectedFilter, searchQuery, autoplay, hitSound, hitSoundVol, missSound, showJudgeGuides, guideBeat, guideVol, theme, lastTrackKey, musicVol, exportSize };
+    const obj = { selectedDifficulty, timingOffsetMs, showBeatGuide, judgeTightness, selectedSort, selectedSortDir, selectedFilter, searchQuery, autoplay, hitSound, hitSoundVol, missSound, showJudgeGuides, guideBeat, guideVol, theme, lastTrackKey, musicVol, exportSize, bgmMode };
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(obj));
   } catch {}
 }
@@ -2432,6 +2475,7 @@ function loadSettings() {
       if (typeof obj.guideVol === 'number') guideVol = Math.max(0, Math.min(1, obj.guideVol));
       if (typeof obj.missSound === 'boolean') missSound = obj.missSound;
       if (typeof obj.exportSize === 'string') exportSize = obj.exportSize;
+      if (typeof obj.bgmMode === 'boolean') bgmMode = obj.bgmMode;
     }
   } catch {}
 }
