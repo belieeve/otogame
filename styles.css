@@ -45,6 +45,8 @@ html, body {
   padding: 16px;
   display: flex;
   justify-content: center;
+  align-items: center;
+  min-height: 100vh;
   z-index: 2; /* ensure UI overlays canvas */
 }
 
@@ -62,6 +64,42 @@ html, body {
   font-size: var(--fs-title);
   font-weight: 700;
   margin-bottom: 16px;
+}
+
+/* Hero (title screen) */
+.hero {
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 28px 24px;
+  width: min(920px, 92vw);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+}
+.logo {
+  font-size: clamp(28px, 5vw, 48px);
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  background: linear-gradient(90deg, #9bd2ff, #93ffa7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.lead { color: var(--muted); margin-top: 6px; }
+.cta { display: flex; gap: 12px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+
+/* Simple equalizer animation */
+.eq { display: inline-flex; gap: 4px; margin-left: 8px; }
+.eq .bar {
+  width: 4px; height: 14px; border-radius: 2px; background: rgba(155,210,255,0.9);
+  animation: eq-bounce 900ms ease-in-out infinite;
+}
+.eq .bar:nth-child(2){ animation-delay: 0.1s; }
+.eq .bar:nth-child(3){ animation-delay: 0.2s; }
+.eq .bar:nth-child(4){ animation-delay: 0.3s; }
+.eq .bar:nth-child(5){ animation-delay: 0.4s; }
+@keyframes eq-bounce {
+  0%, 100% { transform: scaleY(0.6); opacity: 0.8; }
+  50% { transform: scaleY(1.6); opacity: 1; }
 }
 
 .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }

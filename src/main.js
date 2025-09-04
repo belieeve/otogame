@@ -90,14 +90,25 @@ function renderUI() {
 
   if (gameState === STATE.TITLE) {
     const panel = document.createElement('div');
-    panel.className = 'panel';
+    panel.className = 'hero';
     panel.innerHTML = `
-      <div class="title">Otogame Prototype</div>
-      <div style="margin-bottom:12px;color:#aab3c0">アップロードした楽曲で遊べるリズムゲーム</div>
-      <div class="row">
-        <button id="start-btn">GAME START</button>
+      <div class="logo">Otogame <span style="opacity:.85">Prototype</span>
+        <span class="eq" aria-hidden="true">
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        </span>
       </div>
-      <div style="margin-top:12px;color:#aab3c0">キー: <span class="kbd">S</span> <span class="kbd">D</span> <span class="kbd">F</span> <span class="kbd">J</span> <span class="kbd">K</span> <span class="kbd">L</span></div>
+      <div class="lead">アップロードした楽曲で遊べるリズムゲーム。<br/>曲を選んで、ビートに合わせてキーを叩こう！</div>
+      <div class="cta">
+        <button id="start-btn" class="start-btn">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor" focusable="false" aria-hidden="true">
+              <path d="M8 5v14l11-7z"></path>
+            </svg>
+          </span>
+          <span>GAME START</span>
+        </button>
+        <div class="muted">キー: <span class="kbd">S</span> <span class="kbd">D</span> <span class="kbd">F</span> <span class="kbd">J</span> <span class="kbd">K</span> <span class="kbd">L</span></div>
+      </div>
     `;
     $app.appendChild(panel);
     document.getElementById('start-btn').onclick = () => setState(STATE.SELECT);
